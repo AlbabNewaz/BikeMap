@@ -55,6 +55,8 @@ function filterByMinute(tripsByMinute, minute) {
     return tripsByMinute.slice(minMinute, maxMinute).flat();
   }
 }
+// Quantize scale to discretize departure ratio into 3 levels
+const stationFlow = d3.scaleQuantize().domain([0, 1]).range([0, 0.5, 1]);
 
 // -------------------------------
 // Compute station traffic with optional time filter
@@ -185,11 +187,14 @@ map.on('load', async () => {
 
     // Adjust circle radius range for filtered data
     timeFilter === -1 ? radiusScale.range([0, 25]) : radiusScale.range([3, 50]);
-
     circles
-      .data(filteredStations, d => d.short_name)
+      .data(filteredStations, (d) => d.short_name)
       .join('circle')
-      .attr('r', d => radiusScale(d.totalTraffic));
+      .attr('r', (d) => radiusScale(d.totalTraffic))
+      .style('--departure-ratio', (d) =>
+      stationFlow(d.departures / d.totalTraffic)
+  );
+
   }
 
   function updateTimeDisplay() {

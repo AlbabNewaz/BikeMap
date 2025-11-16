@@ -30,3 +30,30 @@ body {
   z-index: 1; 
   pointer-events: none; 
 }
+
+#map circle,
+.legend > div {
+  --color-departures: steelblue;
+  --color-arrivals: darkorange;
+  --color: color-mix(
+    in oklch,
+    var(--color-departures) calc(100% * var(--departure-ratio)),
+    var(--color-arrivals)
+  );
+  fill: var(--color);
+}
+
+.legend {
+  display: flex;
+  gap: 1px;
+  margin-block: 1em; /* space from map */
+}
+
+.legend > div {
+  flex: 1; /* equal width */
+  text-align: center;
+  padding: 0.5em 0;
+  font-size: 0.85em;
+  color: white; /* adjust if needed */
+}
+
