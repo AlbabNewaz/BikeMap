@@ -42,6 +42,10 @@ body {
   opacity: 0.6;
   pointer-events: auto;
 }
+.legend-label,
+.legend-item {
+  color: black; /* makes the text readable on a white background */
+}
 
 .legend {
   display: flex;
