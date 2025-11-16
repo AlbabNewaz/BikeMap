@@ -3,15 +3,18 @@ html, body {
   padding: 0;
   height: 100%;
   width: 100%;
-  display: flex;
-  flex-direction: column;
+  font-family: sans-serif;
+}
+
+body > * {
+  display: block;
 }
 
 header {
   display: flex;
   gap: 1em;
   align-items: baseline;
-  margin: 1em;
+  padding: 1em;
 }
 
 header label {
@@ -20,8 +23,9 @@ header label {
 
 #map {
   width: 100%;
-  height: 80vh;
+  height: 80vh; 
   position: relative;
+  margin: 0 auto; 
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   border-radius: 8px;
 }
@@ -36,7 +40,6 @@ header label {
   z-index: 1;
 }
 
-/* Step 6: circle colors and legend */
 #map circle,
 .legend > div {
   --color-departures: steelblue;
@@ -59,7 +62,9 @@ header label {
 .legend {
   display: flex;
   gap: 1px;
-  margin-block: 1em;
+  margin: 1em auto;
+  max-width: 600px;
+  justify-content: space-between;
 }
 
 .legend > div {
