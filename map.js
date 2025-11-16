@@ -75,4 +75,8 @@ map.on('load', async () => {
 
 
   console.log("Bike route layer added.");
+
+  let stations = jsonData.data.stations;
+console.log('Stations Array:', stations);
+
 });
