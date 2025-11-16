@@ -2,13 +2,9 @@
 import mapboxgl from 'https://cdn.jsdelivr.net/npm/mapbox-gl@2.15.0/+esm';
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
 
-// Mapbox token
-mapboxgl.accessToken =
-  'pk.eyJ1Ijoibm9jdHVybmFscG90YXRvIiwiYSI6ImNtaHp2cjV5YTBpZmoya3B3cjFyZDlvdHkifQ.qt0TSgvU1cY9sIgLYJcIRw';
+mapboxgl.accessToken = 'pk.eyJ1Ijoibm9jdHVybmFscG90YXRvIiwiYSI6ImNtaHp2cjV5YTBpZmoya3B3cjFyZDlvdHkifQ.qt0TSgvU1cY9sIgLYJcIRw';
 
-// -------------------------------
 // Helper functions
-// -------------------------------
 function getCoords(station) {
   const point = new mapboxgl.LngLat(+station.lon, +station.lat);
   const { x, y } = map.project(point);
@@ -24,45 +20,42 @@ function minutesSinceMidnight(date) {
   return date.getHours() * 60 + date.getMinutes();
 }
 
-// -------------------------------
-// Pre-bucket trips
-// -------------------------------
+// Precompute trip buckets
 let departuresByMinute = Array.from({ length: 1440 }, () => []);
 let arrivalsByMinute = Array.from({ length: 1440 }, () => []);
 
-// -------------------------------
-// Filter trips efficiently
-// -------------------------------
+// Quantize scale for traffic flow
+const stationFlow = d3.scaleQuantize().domain([0, 1]).range([0, 0.5, 1]);
+
+// Map initialization
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: 'mapbox://styles/mapbox/streets-v12',
+  center: [-71.09415, 42.36027],
+  zoom: 12,
+  minZoom: 5,
+  maxZoom: 18,
+});
+
+// Filter trips by minute efficiently
 function filterByMinute(tripsByMinute, minute) {
   if (minute === -1) return tripsByMinute.flat();
-
   let minMinute = (minute - 60 + 1440) % 1440;
   let maxMinute = (minute + 60) % 1440;
-
   if (minMinute > maxMinute) {
-    const beforeMidnight = tripsByMinute.slice(minMinute);
-    const afterMidnight = tripsByMinute.slice(0, maxMinute);
-    return beforeMidnight.concat(afterMidnight).flat();
+    return tripsByMinute.slice(minMinute).concat(tripsByMinute.slice(0, maxMinute)).flat();
   } else {
     return tripsByMinute.slice(minMinute, maxMinute).flat();
   }
 }
 
-// -------------------------------
-// Quantize scale for traffic flow (step 6)
-// -------------------------------
-const stationFlow = d3.scaleQuantize().domain([0, 1]).range([0, 0.5, 1]);
-
-// -------------------------------
 // Compute station traffic
-// -------------------------------
 function computeStationTraffic(stations, timeFilter = -1) {
   const departures = d3.rollup(
     filterByMinute(departuresByMinute, timeFilter),
     v => v.length,
     d => d.start_station_id
   );
-
   const arrivals = d3.rollup(
     filterByMinute(arrivalsByMinute, timeFilter),
     v => v.length,
@@ -79,21 +72,12 @@ function computeStationTraffic(stations, timeFilter = -1) {
 }
 
 // -------------------------------
-// Initialize Map
+// Map loaded
 // -------------------------------
-const map = new mapboxgl.Map({
-  container: 'map',
-  style: 'mapbox://styles/mapbox/streets-v12',
-  center: [-71.09415, 42.36027],
-  zoom: 12,
-  minZoom: 5,
-  maxZoom: 18,
-});
-
 map.on('load', async () => {
   console.log("Map fully loaded — adding data...");
 
-  // Bike lanes
+  // Add bike lanes (Boston & Cambridge)
   map.addSource('boston_route', {
     type: 'geojson',
     data: 'https://bostonopendata-boston.opendata.arcgis.com/datasets/boston::existing-bike-network-2022.geojson',
@@ -120,21 +104,18 @@ map.on('load', async () => {
   const stationsData = await d3.json('https://dsc106.com/labs/lab07/data/bluebikes-stations.json');
   let stations = stationsData.data.stations;
 
-  // Load trips CSV and bucket by minute
+  // Load trips and bucket by minute
   let trips = await d3.csv(
     'https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv',
     trip => {
       trip.started_at = new Date(trip.started_at);
       trip.ended_at = new Date(trip.ended_at);
-
-      const startMin = minutesSinceMidnight(trip.started_at);
-      const endMin = minutesSinceMidnight(trip.ended_at);
-      departuresByMinute[startMin].push(trip);
-      arrivalsByMinute[endMin].push(trip);
-
+      departuresByMinute[minutesSinceMidnight(trip.started_at)].push(trip);
+      arrivalsByMinute[minutesSinceMidnight(trip.ended_at)].push(trip);
       return trip;
     }
   );
+  console.log("Trips loaded:", trips.length);
 
   // Initial traffic computation
   stations = computeStationTraffic(stations);
@@ -146,18 +127,14 @@ map.on('load', async () => {
     .domain([0, d3.max(stations, d => d.totalTraffic)])
     .range([0, 25]);
 
-  // Circles for stations
+  // Circles
   let circles = svg
     .selectAll('circle')
     .data(stations, d => d.short_name)
     .enter()
     .append('circle')
     .attr('r', d => radiusScale(d.totalTraffic))
-    .each(function(d) {
-      d3.select(this)
-        .append('title')
-        .text(`${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`);
-    });
+    .style('--departure-ratio', d => stationFlow(d.departures / d.totalTraffic));
 
   function updatePositions() {
     circles
@@ -186,16 +163,13 @@ map.on('load', async () => {
       .data(filteredStations, d => d.short_name)
       .join('circle')
       .attr('r', d => radiusScale(d.totalTraffic))
-      .style('--departure-ratio', d =>
-        d.totalTraffic === 0 ? 0.5 : stationFlow(d.departures / d.totalTraffic)
-      );
-
+      .style('--departure-ratio', d => stationFlow(d.departures / d.totalTraffic));
+    
     updatePositions();
   }
 
   function updateTimeDisplay() {
     const timeFilter = Number(timeSlider.value);
-
     if (timeFilter === -1) {
       selectedTime.textContent = '';
       anyTimeLabel.style.display = 'block';
@@ -203,7 +177,6 @@ map.on('load', async () => {
       selectedTime.textContent = formatTime(timeFilter);
       anyTimeLabel.style.display = 'none';
     }
-
     updateScatterPlot(timeFilter);
   }
 
