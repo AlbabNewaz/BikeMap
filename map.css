@@ -24,8 +24,8 @@ body {
   z-index: 1;
 }
 
-#map circle,
-.legend > div {
+/* Only circles use the color-mix fill */
+#map circle {
   --color-departures: steelblue;
   --color-arrivals: darkorange;
   --color: color-mix(
@@ -34,19 +34,13 @@ body {
     var(--color-arrivals)
   );
   fill: var(--color);
-}
-
-#map circle {
   stroke: white;
   stroke-width: 1px;
   opacity: 0.6;
   pointer-events: auto;
 }
-.legend-label,
-.legend-item {
-  color: black; /* makes the text readable on a white background */
-}
 
+/* Legend styles */
 .legend {
   display: flex;
   align-items: center;
@@ -59,13 +53,14 @@ body {
 .legend-label {
   font-weight: bold;
   margin-right: 0.5em;
+  color: black; /* ensure label text is black */
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 0.3em;
-  color: black; 
+  color: black; /* ensures the legend item text is black */
 }
 
 .legend-item::before {
@@ -74,22 +69,8 @@ body {
   height: 20px;
   background: color-mix(
     in oklch,
-    var(--color-departures) calc(100% * var(--departure-ratio)),
-    var(--color-arrivals)
+    var(--color-departures, steelblue) calc(100% * var(--departure-ratio, 0)),
+    var(--color-arrivals, darkorange)
   );
   border-radius: 3px;
-}
-
-
-/* Map and circle styles remain the same */
-#map circle,
-.legend > div {
-  --color-departures: steelblue;
-  --color-arrivals: darkorange;
-  --color: color-mix(
-    in oklch,
-    var(--color-departures) calc(100% * var(--departure-ratio)),
-    var(--color-arrivals)
-  );
-  fill: var(--color);
 }
